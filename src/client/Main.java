@@ -6,7 +6,7 @@ import java.util.Scanner;
 
 public class Main {
 
-    public static void main(String[] args) {
+    static void main() {
 
         System.out.println("Game is starting up...");
 
@@ -40,9 +40,14 @@ public class Main {
             System.out.println("Player not loaded!");
         }
 
-        while (true) {
-            String message = scanner.nextLine();
-            client.sendMessage(message);
-        }
+        boolean running = true;
+
+            while (running) {
+                String message = scanner.nextLine();
+                if (message.equals("quit")) {
+                    running = false;
+                }
+                client.sendMessage(message);
+            }
     }
 }
