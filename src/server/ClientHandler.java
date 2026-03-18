@@ -1,5 +1,6 @@
 package server;
 
+import com.google.gson.Gson;
 import shared.Player;
 
 import java.io.DataInputStream;
@@ -53,12 +54,16 @@ public class ClientHandler implements Runnable{
                 else if (packetId == 4) {
                     String username = in.readUTF();
                     String password = in.readUTF();
+                    String data = "";
                     if (Server.checkUsername(username)) {
-                        String data = Server.loadPlayer(username, password);
+                        data = Server.loadPlayer(username, password);
                         out.writeByte(4);
                         out.writeUTF(data);
                         out.flush();
-
+                    }
+                    Gson gson = new Gson();
+                    if (!data.isEmpty()){
+                        player = gson.fromJson(data, Player.class);
                     }
                 }
             }

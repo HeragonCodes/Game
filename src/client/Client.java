@@ -10,18 +10,17 @@ import java.net.Socket;
 
 public class Client implements Runnable{
 
-    private Socket socket;
     private DataInputStream in;
     private DataOutputStream out;
 
     private volatile Boolean loginResult = null;
     private Player player;
+    boolean running = true;
 
     public void connect(String ipAddress, int port) {
 
-        try {
+        try (Socket socket = new Socket(ipAddress, port)){
             System.out.println("Connecting to server...");
-            socket = new Socket(ipAddress, port);
 
             in = new DataInputStream(socket.getInputStream());
             out = new DataOutputStream(socket.getOutputStream());
@@ -36,8 +35,12 @@ public class Client implements Runnable{
 
     public void sendMessage(String message) {
         try {
-            out.writeByte(2);
-            out.writeUTF(message);
+            if (!message.equals("quit")) {
+                out.writeByte(2);
+                out.writeUTF(message);
+            } else {
+                running = false;
+            }
         } catch (IOException e) {
             System.out.println("ERROR! Message not sent!");
         }
@@ -46,7 +49,7 @@ public class Client implements Runnable{
     @Override
     public void run() {
         try {
-            while (true) {
+            while (running) {
                 byte packetId = in.readByte();
                 if (packetId == 0) {
                     loginResult = in.readBoolean();
@@ -59,6 +62,8 @@ public class Client implements Runnable{
                     String data = in.readUTF();
                     if (!data.isEmpty()) {
                         player = gson.fromJson(data, Player.class);
+                    } else {
+                        player = new Player(-1, "");
                     }
                 }
             }
