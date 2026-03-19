@@ -27,31 +27,22 @@ public class ClientHandler implements Runnable{
             while (true) {
                 byte packetId = in.readByte();
 
+
                 if (packetId == 0) {
+                    Server.kill(this);
+                }
+                else if (packetId == 1) {
+                    out.writeByte(1);
+                    out.flush();
+                }
+                else if (packetId == 2) {
                     String username = in.readUTF();
-                    out.writeByte(0);
+                    out.writeByte(2);
                     out.writeBoolean(Server.checkUsername(username));
                     out.flush();
                 }
 
-                else if (packetId == 1) {
-                    System.out.println(player.getUsername() + " has joined the server");
-                }
-
-                else if (packetId == 2) {
-                    String message = in.readUTF();
-                    Server.broadcastMessage("<" + player.getUsername() + "> " + message);
-                }
-
                 else if (packetId == 3) {
-                    String username = in.readUTF();
-                    String password = in.readUTF();
-                    if (!Server.checkUsername(username)) {
-                        Server.createAccount(username, password);
-                    }
-                }
-
-                else if (packetId == 4) {
                     String username = in.readUTF();
                     String password = in.readUTF();
                     String data = "";
@@ -66,9 +57,30 @@ public class ClientHandler implements Runnable{
                         player = gson.fromJson(data, Player.class);
                     }
                 }
+
+                else if (packetId == 4) {
+                    String username = in.readUTF();
+                    String password = in.readUTF();
+                    if (!Server.checkUsername(username)) {
+                        Server.createAccount(username, password);
+                    }
+                }
+
+                else if (packetId == 5) {
+                    System.out.println(player.getUsername() + " joined the server!");
+                }
+
+                else if (packetId == 6) {
+                    String message = in.readUTF();
+                    Server.broadcastMessage("<" + player.getUsername() + "> " + message);
+                }
             }
         } catch (IOException e) {
-            System.out.println(player.getUsername() + " left the server");
+            if (player != null) {
+                System.out.println(player.getUsername() + " left the server");
+            } else {
+                System.out.println("An unregistered client disconnected.");
+            }
             Server.kill(this);
         }
     }
@@ -76,7 +88,7 @@ public class ClientHandler implements Runnable{
     public void sendMessageToClient(String message) {
         try {
             if (out != null) {
-                out.writeByte(2);
+                out.writeByte(6);
                 out.writeUTF(message);
                 out.flush();
             }

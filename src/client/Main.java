@@ -11,11 +11,14 @@ public class Main {
         System.out.println("Game is starting up...");
 
         Client client = new Client();
+
+        System.out.println("Connecting to server...");
         client.connect("localhost", 8080);
 
         Scanner scanner = new Scanner(System.in);
         System.out.print("Username: ");
         String username = scanner.nextLine();
+        System.out.println("Checking for username validity...");
         boolean accountExists = client.attemptUsername(username);
 
         Player player = null;
@@ -30,6 +33,9 @@ public class Main {
                 System.out.println("Choose a password: ");
                 String password = scanner.nextLine();
                 client.createNewAccount(username, password);
+                try {Thread.sleep(500);} catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
                 player = client.tryLogin(username, password);
             }
         }
@@ -39,6 +45,9 @@ public class Main {
         } else {
             System.out.println("Player not loaded!");
         }
+
+        assert player != null;
+        System.out.println("Entered the server as " + player.getUsername());
 
         boolean running = true;
 
