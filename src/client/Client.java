@@ -2,11 +2,13 @@ package client;
 
 import com.google.gson.Gson;
 import shared.Player;
+import shared.Vector2;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Client implements Runnable{
 
@@ -15,12 +17,17 @@ public class Client implements Runnable{
 
     private volatile Boolean usernameCheckResult = null;
     private volatile Player player;
+    private CopyOnWriteArrayList<Player> allPlayers = new CopyOnWriteArrayList<>();
+
+    private GameWindow window;
 
     boolean running = true;
 
+    public void setWindow(GameWindow window) {
+        this.window = window;
+    }
 
-
-    public void connect(String ipAddress, int port) {
+    public boolean connect(String ipAddress, int port) {
 
         try {
             Socket socket = new Socket(ipAddress, port);
@@ -33,8 +40,12 @@ public class Client implements Runnable{
             out.flush();
 
             new Thread(this).start();
+
+            return true;
+
         } catch (IOException e) {
             System.err.println("Cannot establish connection with server!");
+            return false;
         }
     }
 
@@ -54,7 +65,7 @@ public class Client implements Runnable{
                     running = false;
                 }
                 else if (packetId == 1) {
-                    System.out.println("Connection established.");
+
                 }
                 else if (packetId == 2) {
                     usernameCheckResult = in.readBoolean();
@@ -71,12 +82,25 @@ public class Client implements Runnable{
                     if (!data.isEmpty()) {
                         player = gson.fromJson(data, Player.class);
                     } else {
-                        player = new Player(-1, "");
+                        player = new Player(-1, "", new Vector2(0, 0));
+                    }
+                }
+                else if (packetId == 7) {
+                    allPlayers = new CopyOnWriteArrayList<>();
+                    int size = in.readInt();
+                    for (int i = 0; i < size; i++) {
+                        allPlayers.add(new Player(in.readInt(), in.readUTF(), new Vector2(in.readInt(), in.readInt())));
+                    }
+
+                    if (this.window != null) {
+                        this.window.repaint();
                     }
                 }
             }
         } catch (IOException e) {
             System.err.println("Disconnected from server!");
+        } catch (Exception e) {
+            System.out.println("Crash!");
         }
     }
 
@@ -111,12 +135,14 @@ public class Client implements Runnable{
             while (player == null) {
                 Thread.sleep(50);
             }
-            out.writeByte(5);
-            out.flush();
+            if (player.getId() != -1) {
+                out.writeByte(5);
+                out.flush();
+            }
             return player;
         } catch (Exception e) {
             System.err.println("Failed to send login request!");
-            return new Player(-1, "");
+            return new Player(-1, "", new Vector2(0, 0));
         }
     }
 
@@ -142,17 +168,38 @@ public class Client implements Runnable{
                 out.writeByte(6);
                 out.writeUTF(message);
                 out.flush();
-            } else {
-                out.writeByte(0);
-                out.flush();
-                in.close();
-                out.close();
-                running = false;
             }
         } catch (IOException e) {
             System.err.println("ERROR! Message not sent!");
         }
     }
 
+    public void quit() {
+        try {
+            out.writeByte(0);
+            out.flush();
+            in.close();
+            out.close();
+            running = false;
+        } catch (IOException e) {
+            System.err.println("Generic error");
+        }
+    }
 
+    //PACKET 7 - Client Send Movement
+    public void sendMovement(boolean sprint, char key) {
+        try {
+            out.writeByte(7);
+            out.writeBoolean(sprint);
+            out.writeChar(key);
+            out.flush();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    public CopyOnWriteArrayList<Player> getAllPlayers() {
+        return allPlayers;
+    }
 }

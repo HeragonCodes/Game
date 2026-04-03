@@ -1,7 +1,7 @@
 package server;
 
-import server.ClientHandler;
 import shared.Player;
+
 import java.io.*;
 import java.net.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -10,29 +10,47 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class Server {
 
     public static CopyOnWriteArrayList<ClientHandler> connectedClients = new CopyOnWriteArrayList<>();
+    public static CopyOnWriteArrayList<Player> allPlayers = new CopyOnWriteArrayList<>();
+
+    public static int sprintMul = 2;
 
     public static void main(String[] args) throws IOException {
 
-        try {
-            int port = 8080;
-            ServerSocket serverSocket = new ServerSocket(port);
-            System.out.println("Server started on port " + port);
+        int port = 8080;
+        new Thread(new ConnectionListener(port)).start();
 
-            while (true) {
-                Socket socket = serverSocket.accept();
-                ClientHandler clientHandler = new ClientHandler(socket);
-                connectedClients.add(clientHandler);
-                new Thread(clientHandler).start();
+        while (true){
+            gameLoop();
+
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                System.err.println("GENERIC ERROR!");
             }
-
-        } catch (IOException e) {
-            System.out.println("FATAL ERROR! Cannot start server!");
         }
+    }
+
+    public static void gameLoop() {
+        sharePlayers();
     }
 
     public static void broadcastMessage(String message) {
         for (ClientHandler client : connectedClients) {
             client.sendMessageToClient(message);
+        }
+    }
+
+    public static void sharePlayers() {
+        allPlayers = new CopyOnWriteArrayList<>();
+        for (ClientHandler client : connectedClients) {
+            if (client.player != null) {
+                allPlayers.add(client.player);
+            }
+        }
+        for (ClientHandler client : connectedClients) {
+            if (client.player != null) {
+                client.updatePlayers(allPlayers);
+            }
         }
     }
 
@@ -52,4 +70,5 @@ public class Server {
         AccountsDatabase.addAccount(username, password);
         AccountsDatabase.createNewPlayer(AccountsDatabase.loadAccount(username, password), username);
     }
+
 }

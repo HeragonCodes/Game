@@ -2,11 +2,13 @@ package server;
 
 import com.google.gson.Gson;
 import shared.Player;
+import shared.Vector2;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ClientHandler implements Runnable{
 
@@ -46,12 +48,17 @@ public class ClientHandler implements Runnable{
                     String username = in.readUTF();
                     String password = in.readUTF();
                     String data = "";
+
                     if (Server.checkUsername(username)) {
                         data = Server.loadPlayer(username, password);
+                    }
+
+                    synchronized (out) {
                         out.writeByte(4);
                         out.writeUTF(data);
                         out.flush();
                     }
+
                     Gson gson = new Gson();
                     if (!data.isEmpty()){
                         player = gson.fromJson(data, Player.class);
@@ -74,6 +81,13 @@ public class ClientHandler implements Runnable{
                     String message = in.readUTF();
                     Server.broadcastMessage("<" + player.getUsername() + "> " + message);
                 }
+
+                else if (packetId == 7) {
+                    boolean sprint = in.readBoolean();
+                    char key = in.readChar();
+
+                    updateMovement(sprint, key);
+                }
             }
         } catch (IOException e) {
             if (player != null) {
@@ -83,6 +97,22 @@ public class ClientHandler implements Runnable{
             }
             Server.kill(this);
         }
+    }
+
+    public void updateMovement(boolean sprint, char key) {
+        Vector2 vector = Vector2.vecEmpty;
+        switch (key) {
+            case 's': vector = Vector2.vecDown; break;
+            case 'w': vector = Vector2.vecUp; break;
+            case 'a': vector = Vector2.vecLeft; break;
+            case 'd': vector = Vector2.vecRight; break;
+        }
+        if (sprint) {
+            player.changePos(vector.vecMul(Server.sprintMul));
+        } else {
+            player.changePos(vector);
+        }
+        System.out.println("New playerpos = " + player.getPos().x + " " + player.getPos().y);
     }
 
     public void sendMessageToClient(String message) {
@@ -95,6 +125,25 @@ public class ClientHandler implements Runnable{
         } catch (IOException e) {
             System.out.println("Failed to send message to " + player.getUsername());
             Server.kill(this);
+        }
+    }
+
+    public void updatePlayers(CopyOnWriteArrayList<Player> allPlayers) {
+        try {
+            synchronized (out){
+                out.writeByte(7);
+                out.writeInt(allPlayers.size());
+                for (Player player : allPlayers) {
+                    out.writeInt(player.getId());
+                    out.writeUTF(player.getUsername());
+                    out.flush();
+                    out.writeInt(player.getPos().x);
+                    out.writeInt(player.getPos().y);
+                }
+            }
+            out.flush();
+        } catch (IOException e) {
+            System.err.println("Failed to share players information");
         }
     }
 }

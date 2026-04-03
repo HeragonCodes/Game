@@ -2,6 +2,7 @@ package server;
 
 import com.google.gson.Gson;
 import shared.Player;
+import shared.Vector2;
 
 import java.io.File;
 import java.io.FileReader;
@@ -70,7 +71,7 @@ public class AccountsDatabase {
 
         try (FileWriter writer = new FileWriter(path)) {
             Gson gson = new Gson();
-            Player player = new Player(id, username);
+            Player player = new Player(id, username, new Vector2(0,0));
             gson.toJson(player, writer);
         } catch (Exception e) {
             System.out.println("Failed to create new Player for " + id);
@@ -96,6 +97,17 @@ public class AccountsDatabase {
         } catch (IOException e) {
             System.out.println("Could not find " + path);
             return -1;
+        }
+    }
+
+    public static void updateAccount(Player player) {
+        String path = "data\\profile\\" + player.getId() + ".json";
+
+        try (FileWriter writer = new FileWriter(path)){
+            Gson gson = new Gson();
+            gson.toJson(player, writer);
+        } catch (Exception e) {
+            System.out.println("Failed to update " + player.getUsername() + " in the database.");
         }
     }
 }
